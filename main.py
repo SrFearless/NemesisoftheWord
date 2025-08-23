@@ -1,13 +1,27 @@
 import pygame
+import sys
+import os
 
-print('Setup Start')
-pygame.init()
-window = pygame.display.set_mode(size=(600, 480))
-print('Setup End')
+# Adiciona a pasta src ao path para importar módulos
+sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 
-print('Loop Start')
-while True:
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            pygame.quit()
-            quit()
+from game import Game
+
+
+def main():
+    # Inicializa o pygame
+    pygame.init()
+
+    # Cria uma instância do jogo
+    game = Game()
+
+    # Loop principal do jogo
+    game.run()
+
+    # Encerra o pygame
+    pygame.quit()
+    sys.exit()
+
+
+if __name__ == "__main__":
+    main()
