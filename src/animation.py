@@ -3,7 +3,7 @@ import pygame
 class Animation:
     def __init__(self, frames, frame_duration=100):
         self.frames = frames
-        self.frame_duration = frame_duration  # em milissegundos
+        self.frame_duration = frame_duration
         self.current_frame = 0
         self.last_update = pygame.time.get_ticks()
 

@@ -1,10 +1,9 @@
 import pygame
-import os
 import sys
 import random
 import math
-from player import Player
-from enemy import Enemy
+from src.player import Player
+from src.enemy import Enemy
 
 # Inicialização do Pygame
 pygame.init()
@@ -27,6 +26,10 @@ YELLOW = (255, 255, 0)
 ORANGE = (255, 165, 0)
 PURPLE = (128, 0, 128)
 
+# Variáveis de debug
+show_debug = False  # Tecla F1 para mostrar/ocultar debug
+
+
 # Classe para efeitos visuais
 class Effect(pygame.sprite.Sprite):
     def __init__(self, x, y, effect_type):
@@ -40,7 +43,6 @@ class Effect(pygame.sprite.Sprite):
             for i in range(4):
                 surf = pygame.Surface((40, 15), pygame.SRCALPHA)
                 alpha = 200 - (i * 50)
-                pygame.draw.rect(surf, (255, 255, 0, alpha), (0, 0, 30 + i * 3, 10))
                 self.frames.append(surf)
 
             self.image = self.frames[0]
@@ -58,13 +60,15 @@ class Effect(pygame.sprite.Sprite):
         else:
             self.kill()
 
+
 # Funções de desenho
-def draw_health_bar(surface, x, y, percentage, width=100, height=10):
+def draw_health_bar(surface, x, y, percentage, width=100, height=20):
     fill = (percentage / 100) * width
     outline_rect = pygame.Rect(x, y, width, height)
     fill_rect = pygame.Rect(x, y, fill, height)
     pygame.draw.rect(surface, GREEN, fill_rect)
     pygame.draw.rect(surface, WHITE, outline_rect, 2)
+
 
 def draw_text(surface, text, size, x, y, color=WHITE):
     font = pygame.font.SysFont(None, size)
@@ -72,6 +76,7 @@ def draw_text(surface, text, size, x, y, color=WHITE):
     text_rect = text_surface.get_rect()
     text_rect.midtop = (x, y)
     surface.blit(text_surface, text_rect)
+
 
 # Cria o jogador
 player = Player(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
@@ -107,30 +112,19 @@ while running:
         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
                 running = False
-            if event.key == pygame.K_SPACE and not game_over:
+            elif event.key == pygame.K_F1:  # Tecla F1 para debug
+                show_debug = not show_debug
+                print(f"Debug mode: {show_debug}")
+            elif event.key == pygame.K_SPACE and not game_over:
                 if player.attack():
                     # Cria efeito visual da espada
-                    if player.direction == "right":
+                    if player.facing == "right":
                         effect_x = player.rect.right + 15
                     else:
                         effect_x = player.rect.left - 15
                     effect = Effect(effect_x, player.rect.centery, "sword")
                     effects.add(effect)
                     all_sprites.add(effect)
-
-                    # Verifica colisão com inimigos
-                    sword_hitbox = player.get_sword_hitbox()
-                    if sword_hitbox:
-                        for enemy in enemies:
-                            if sword_hitbox.colliderect(enemy.rect):
-                                enemy.health -= player.attack_damage
-                                combo_counter += 1
-                                combo_timer = 60
-
-                                if enemy.health <= 0:
-                                    score += 10 + (combo_counter * 2)
-                                    enemies_defeated += 1
-                                    enemy.kill()
 
     if not game_over:
         # Atualiza combo timer
@@ -155,14 +149,34 @@ while running:
             enemy.update()
 
         # Atualiza efeitos
-        effects.update()
+        for effect in effects:
+            effect.update()
 
-        # Colisão: Inimigo vs Jogador
-        hits = pygame.sprite.spritecollide(player, enemies, False)
-        for enemy in hits:
-            player.health -= 0.5
-            if player.health <= 0:
-                game_over = True
+        # COLISÃO ATAQUE-PLAYER (usando hitbox de espada)
+        if player.attacking:
+            sword_hitbox = player.get_sword_hitbox()
+            if sword_hitbox:
+                for enemy in enemies:
+                    # Verifica colisão com a hitbox de colisão do inimigo se existir, senão com rect normal
+                    enemy_hitbox = getattr(enemy, 'collision_rect', enemy.rect)
+                    if sword_hitbox.colliderect(enemy_hitbox):
+                        enemy.health -= player.attack_damage
+                        combo_counter += 1
+                        combo_timer = 60
+
+                        if enemy.health <= 0:
+                            score += 10 + (combo_counter * 2)
+                            enemies_defeated += 1
+                            enemy.kill()
+
+        # COLISÃO INIMIGO-PLAYER (usando hitbox de colisão)
+        player_hitbox = getattr(player, 'collision_rect', player.rect)
+        for enemy in enemies:
+            enemy_hitbox = getattr(enemy, 'collision_rect', enemy.rect)
+            if player_hitbox.colliderect(enemy_hitbox):
+                player.health -= 0.5
+                if player.health <= 0:
+                    game_over = True
 
         # Aumenta a dificuldade
         if enemies_defeated >= enemies_per_level:
@@ -177,33 +191,64 @@ while running:
     # Desenha todos os sprites
     all_sprites.draw(screen)
 
-    # Desenha a hitbox da espada (para debug)
-    if player.attacking:
-        sword_hitbox = player.get_sword_hitbox()
-        if sword_hitbox:
-            pygame.draw.rect(screen, ORANGE, sword_hitbox, 2)
+    # SISTEMA DE DEBUG VISUAL
+    if show_debug:
+        # Desenha hitbox de colisão do player (vermelho)
+        player_hitbox = getattr(player, 'collision_rect', player.rect)
+        pygame.draw.rect(screen, (255, 0, 0), player_hitbox, 1)
+
+        # Desenha hitbox principal do player (verde)
+        pygame.draw.rect(screen, (0, 255, 0), player.rect, 1)
+
+        # Desenha hitbox de ataque (amarelo) quando atacando
+        if player.attacking:
+            sword_hitbox = player.get_sword_hitbox()
+            if sword_hitbox:
+                pygame.draw.rect(screen, (255, 255, 0), sword_hitbox, 1)
+
+        # Desenha hitboxes dos inimigos
+        for enemy in enemies:
+            enemy_hitbox = getattr(enemy, 'collision_rect', enemy.rect)
+            pygame.draw.rect(screen, (255, 0, 0), enemy_hitbox, 1)
+            pygame.draw.rect(screen, (0, 255, 0), enemy.rect, 1)
+
+        # Texto de debug
+        debug_text = [
+            f"Debug Mode: F1 to toggle",
+            f"Player Pos: ({player.rect.x}, {player.rect.y})",
+            f"Enemies: {len(enemies)}",
+            f"Player Health: {player.health}",
+            f"Show Debug: {show_debug}"
+        ]
+
+        for i, text in enumerate(debug_text):
+            draw_text(screen, text, 20, 100, 100 + i * 25, YELLOW)
 
     # Desenha barras de vida dos inimigos
     for enemy in enemies:
         health_percent = (enemy.health / enemy.max_health) * 100
-        draw_health_bar(screen, enemy.rect.x, enemy.rect.y - 10, health_percent, 25, 5)
+        draw_health_bar(screen, enemy.rect.x + 30, enemy.rect.y - 1, health_percent, 75, 10)
 
     # Desenha UI
-    draw_health_bar(screen, 10, 10, player.health)
-    draw_text(screen, f"Vida: {int(player.health)}/{player.max_health}", 24, 120, 12)
-    draw_text(screen, f"Score: {score}", 24, SCREEN_WIDTH - 60, 10)
-    draw_text(screen, f"Level: {level}", 24, SCREEN_WIDTH - 60, 40)
-    draw_text(screen, f"Inimigos: {enemies_defeated}/{enemies_per_level}", 24, SCREEN_WIDTH - 100, 70)
+    draw_health_bar(screen, 10, 10, player.health, 200, 20)
+    draw_text(screen, f"Vida: {int(player.health)}/{player.max_health}", 24, 270, 12)
+    draw_text(screen, f"Score: {score}", 24, SCREEN_WIDTH - 50, 10)
+    draw_text(screen, f"Level: {level}", 24, SCREEN_WIDTH - 50, 40)
+    draw_text(screen, f"Inimigos: {enemies_defeated}/{enemies_per_level}", 24, SCREEN_WIDTH - 70, 1170)
 
     # Combo counter
     if combo_counter > 1:
         draw_text(screen, f"COMBO x{combo_counter}!", 32, SCREEN_WIDTH // 2, 10, YELLOW)
 
     # Instruções
-    draw_text(screen, "WASD: Mover | Espaço: Atacar com Espada", 20, SCREEN_WIDTH // 2, SCREEN_HEIGHT - 30)
+    draw_text(screen, "WASD: Mover | Espaço: Atacar", 20, SCREEN_WIDTH // 2, SCREEN_HEIGHT - 30)
 
     # Tela de Game Over
     if game_over:
+        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 180))
+        screen.blit(overlay, (0, 0))
+
         draw_text(screen, "GAME OVER", 64, SCREEN_WIDTH // 2, SCREEN_HEIGHT // 4)
         draw_text(screen, f"Score Final: {score}", 36, SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
         draw_text(screen, f"Level Alcançado: {level}", 36, SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 40)
