@@ -1,6 +1,8 @@
 import pygame
 from config import *
 from player import Player
+from enemy import Enemy
+from animation import Animation  # Adicione esta linha
 
 
 class Game:
@@ -11,14 +13,23 @@ class Game:
         self.clock = pygame.time.Clock()
         self.running = True
 
-        # Carrega assets
-        self.background = pygame.image.load(BACKGROUND_IMAGE).convert()
-        self.background = pygame.transform.scale(self.background, (SCREEN_WIDTH, SCREEN_HEIGHT))
+        # Carrega assets com verificação de arquivo
+        try:
+            self.background = pygame.image.load(BACKGROUND_IMAGE).convert()
+            self.background = pygame.transform.scale(self.background, (SCREEN_WIDTH, SCREEN_HEIGHT))
+        except:
+            print(f"Erro ao carregar background: {BACKGROUND_IMAGE}")
+            # Cria um background simples como fallback
+            self.background = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+            self.background.fill((50, 120, 80))  # Verde escuro
 
-        # Carrega música de fundo
-        pygame.mixer.music.load(BACKGROUND_MUSIC)
-        pygame.mixer.music.set_volume(0.5)
-        pygame.mixer.music.play(-1)  # -1 para loop infinito
+        # Tenta carregar música de fundo
+        try:
+            pygame.mixer.music.load(BACKGROUND_MUSIC)
+            pygame.mixer.music.set_volume(0.5)
+            pygame.mixer.music.play(-1)  # -1 para loop infinito
+        except:
+            print(f"Erro ao carregar música: {BACKGROUND_MUSIC}")
 
         # Cria o jogador
         self.player = Player(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)

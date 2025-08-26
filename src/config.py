@@ -1,3 +1,6 @@
+import os
+import sys
+
 # Configurações da janela
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
@@ -23,12 +26,12 @@ def get_resource_path(relative_path):
     return os.path.join(base_path, "assets", relative_path)
 
 
-# Imagens
-PLAYER_IMAGE = get_resource_path("images/characters/player.png")
-BACKGROUND_IMAGE = get_resource_path("images/backgrounds/forest.png")
+# Imagens - usando caminhos relativos simples para evitar erros
+PLAYER_IMAGE = "assets/images/player.png"
+BACKGROUND_IMAGE = "assets/images/backgrounds.png"
 
 # Áudio
-BACKGROUND_MUSIC = get_resource_path("audio/music/theme.ogg")
+BACKGROUND_MUSIC = "assets/audio/music/theme.ogg"
 
 # Configurações do jogador
 PLAYER_SPEED = 5
